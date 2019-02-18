@@ -9,46 +9,90 @@
 */
 
 #include "pch.h"
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
 
 using namespace std;
 
-vector<pair<int, int>> findShortPath(vector<vector<int>> a, const int n, int st)
+vector<pair<pair<int, int>, pair<int, int>>> findTwoShortPath(vector<vector<int>> a, const int n, int st)
 {
-	vector<bool> isVisited(n);
-	vector<pair<int, int>> c(n);
+	vector<pair<bool, bool>> isVisited(n);
+	vector<pair<pair<int, int>, pair<int, int>>> c(n);
 	for (int i = 0; i < n; i++)
 	{
-		c[i].first = INT_MAX;
-		isVisited[i] = false;
+		c[i].first.first = INT_MAX;
+		c[i].second.first = INT_MAX;
+		isVisited[i].first = false;
+		isVisited[i].second = false;
 	}
-	c[st].first = 0;
+
+	c[st].first.first = 0;
 	int index = 0, u = 0;
-	for (int i = 0; i < n; i++)
+	bool isMarked = true;
+	bool isFirst;
+
+	while (isMarked)
 	{
 		int min = INT_MAX;
 
 		for (int j = 0; j < n; j++)
 		{
-			if (!isVisited[j] && c[j].first < min)
+			if (!isVisited[j].first && (c[j].first.first < min))
 			{
-				min = c[j].first;
+				min = c[j].first.first;
 				index = j;
+				isFirst = true;
+			}
+
+			if (!isVisited[j].second && (c[j].second.first < min))
+			{
+				min = c[j].second.first;
+				index = j;
+				isFirst = false;
 			}
 		}
-		u = index;
-		isVisited[u] = true;
 
+		if (min == INT_MAX)
+			break;
+
+		u = index;
+
+		if (isFirst)
+			isVisited[u].first = true;
+		else
+			isVisited[u].second = true;
+
+		isMarked = false;
 		for (int j = 0; j < n; j++)
 		{
-			if (!isVisited[j] && a[u][j] && c[u].first != INT_MAX && (c[u].first + a[u][j] < c[j].first))
+			if (isFirst)
 			{
-				c[j].first = c[u].first + a[u][j];
-				c[j].second = u;
+				if ((!isVisited[j].first || !isVisited[j].second) && a[u][j] && c[u].first.first != INT_MAX)
+				{
+					if (c[u].first.first + a[u][j] < c[j].first.first)
+					{
+						c[j].second.first = c[j].first.first;
+						c[j].first.first = c[u].first.first + a[u][j];
+						c[j].first.second = u;
+						isMarked |= true;
+					}
+					else if (c[u].first.first + a[u][j] < c[j].second.first)
+					{
+						c[j].second.first = c[u].first.first + a[u][j];
+						c[j].second.second = u;
+						isMarked |= true;
+					}
+				}
 			}
+			else
+			{
+				if (!isVisited[j].second && a[u][j] && c[u].second.first != INT_MAX && (c[u].second.first + a[u][j] < c[j].second.first))
+				{
+					c[j].second.first = c[u].second.first + a[u][j];
+					c[j].second.second = u;
+					isMarked |= true;
+				}
+			}
+
+			isMarked |= !isVisited[j].first | !isVisited[j].second;
 		}
 	}
 	return c;
@@ -81,12 +125,11 @@ int main(int argc, char* argv[])
 	input >> nTown >> nRoad;
 
 	vector<vector<int>> d(nTown);
-	vector<vector<pair<int, int>>> d2(nTown);
-	vector<int> d3(nTown);
+	vector<pair<pair<int, int>, pair<int, int>>> paths(nTown);
+
 	for (int i = 0; i < nTown; i++)
 	{
 		d[i].resize(nTown);
-		d2[i].resize(nTown);
 	}
 
 	int roadCounter = nRoad;
@@ -99,55 +142,10 @@ int main(int argc, char* argv[])
 		roadCounter--;
 	}
 
-	for (int i = 0; i < nTown; i++)
-	{
-		for (int j = 0; j < nTown; j++)
-		{
-			d2[i][j] = findShortPath(d, nTown, i)[j];
-		}
-	}
-
-	int start = 0;
-
-	for (int i = 0; i < nTown; i++)
-	{
-		int min = INT_MAX;
-		if (i == start)
-			continue;
-
-		int parent = d2[start][i].second;
-		string parents = " " + to_string(parent);
-
-		while (parent != start)
-		{
-			parent = d2[start][parent].second;
-			parents += " " + to_string(parent);
-		}
-		parents += " ";
-
-		for (int j = 0; j < nTown; j++)
-		{
-			if (j == i || j == start) continue;
-
-			if (parents.find(" " + to_string(j) + " ") == string::npos && d2[start][j].first != INT_MAX && d2[j][i].first != INT_MAX)
-			{
-				int newShortPath = d2[start][j].first + d2[j][i].first;
-				if (newShortPath < min)		
-				{
-					min = newShortPath;
-				}
-			}
-		}
-
-		d3[i] = min;
-	}
+	paths = findTwoShortPath(d, nTown, 0);
 
 	for (int i = 1; i < nTown; i++)
 	{
-		if (d3[i] != INT_MAX)
-			cout << d3[i];
-		else
-			cout << "No";
-		cout << endl;
+		cout << (paths[i].second.first != INT_MAX ? to_string(paths[i].second.first) : "No") << endl;
 	}
 }
